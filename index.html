@@ -422,6 +422,101 @@
             background: #218838;
         }
 
+        .export-history {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+
+        .export-history h3 {
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 18px;
+        }
+
+        .export-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .export-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+
+        .export-item-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .export-item-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .export-item-details {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .export-item-download {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .export-item-download:hover {
+            background: #5568d3;
+        }
+
+        .no-exports {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+
+        .export-stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+
+        .stat-box {
+            flex: 1;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -507,6 +602,16 @@
             <div id="stats" class="stats">
                 Click "+ Add Run" to start your first audit run
             </div>
+
+            <div class="export-history">
+                <h3>📥 Export History</h3>
+                <div id="export-stats" class="export-stats" style="display: none;">
+                    <!-- Stats will be populated dynamically -->
+                </div>
+                <div id="export-list" class="export-list">
+                    <div class="no-exports">No exports yet. Export new items to see them here.</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -517,6 +622,7 @@
         let excelData = {}; // Store parsed Excel data per run
         let runDataWithIds = {}; // Store display data with corresponding FTID values per run
         let columnHeaders = {}; // Store column headers per run
+        let exportHistory = []; // Store export history with data
 
         function init() {
             // Create Master List tab
@@ -844,12 +950,16 @@
             columnHeaders = {};
             excelData = {};
             masterListData = { rows: [], headers: [], newRows: [] };
+            exportHistory = [];
 
             // Clear master list
             const masterContainer = document.getElementById('master-table-container');
             if (masterContainer) {
                 masterContainer.innerHTML = '<div class="empty-state">Master list will appear here after you update...</div>';
             }
+
+            // Clear export history UI
+            updateExportHistoryUI();
 
             // Reset counter and add first run
             runCounter = 0;
@@ -1072,15 +1182,52 @@
                 return;
             }
 
+            // Generate timestamp and filename
+            const now = new Date();
+            const timestamp = now.toISOString().slice(0, 10);
+            const timeString = now.toLocaleTimeString();
+            const filename = `audit-new-items-${timestamp}.xlsx`;
+
+            // Get FTID column index from headers
+            const ftidColumnIndex = masterListData.headers.findIndex(h =>
+                h && h.toString().toUpperCase().includes('FTID')
+            );
+
+            // Extract FTIDs from the data
+            const ftids = masterListData.newRows.map(row =>
+                ftidColumnIndex >= 0 ? row[ftidColumnIndex] : null
+            ).filter(ftid => ftid !== null && ftid !== undefined && ftid !== '');
+
+            // Store in export history
+            const exportRecord = {
+                id: Date.now(),
+                filename: filename,
+                timestamp: `${timestamp} ${timeString}`,
+                itemCount: masterListData.newRows.length,
+                headers: masterListData.headers,
+                data: masterListData.newRows,
+                ftids: ftids
+            };
+
+            exportHistory.push(exportRecord);
+            updateExportHistoryUI();
+
+            // Create and download the file
+            downloadExportFile(exportRecord);
+
+            showStats(`✅ Exported ${masterListData.newRows.length} new items to ${filename}!`, true);
+        }
+
+        function downloadExportFile(exportRecord) {
             // Create workbook
             const wb = XLSX.utils.book_new();
 
-            // Prepare data - headers + new rows only
+            // Prepare data - headers + rows
             const excelData = [
-                masterListData.headers // Header row
+                exportRecord.headers // Header row
             ];
 
-            masterListData.newRows.forEach(rowCells => {
+            exportRecord.data.forEach(rowCells => {
                 excelData.push(rowCells);
             });
 
@@ -1088,7 +1235,7 @@
             const ws = XLSX.utils.aoa_to_sheet(excelData);
 
             // Set column widths based on number of columns
-            const numColumns = masterListData.headers.length;
+            const numColumns = exportRecord.headers.length;
             ws['!cols'] = Array(numColumns).fill({ wch: 20 });
 
             // Apply yellow highlighting to all data rows (except header)
@@ -1113,14 +1260,72 @@
             // Add worksheet to workbook
             XLSX.utils.book_append_sheet(wb, ws, "New Items");
 
-            // Generate filename with timestamp
-            const timestamp = new Date().toISOString().slice(0, 10);
-            const filename = `audit-new-items-${timestamp}.xlsx`;
-
             // Download
-            XLSX.writeFile(wb, filename);
+            XLSX.writeFile(wb, exportRecord.filename);
+        }
 
-            showStats(`✅ Exported ${masterListData.newRows.length} new items to ${filename}!`, true);
+        function updateExportHistoryUI() {
+            const exportList = document.getElementById('export-list');
+            const exportStats = document.getElementById('export-stats');
+
+            if (exportHistory.length === 0) {
+                exportList.innerHTML = '<div class="no-exports">No exports yet. Export new items to see them here.</div>';
+                exportStats.style.display = 'none';
+                return;
+            }
+
+            // Calculate statistics
+            const totalExports = exportHistory.length;
+            const totalItems = exportHistory.reduce((sum, exp) => sum + exp.itemCount, 0);
+
+            // Get all unique FTIDs across all exports
+            const allFtids = new Set();
+            exportHistory.forEach(exp => {
+                if (exp.ftids) {
+                    exp.ftids.forEach(ftid => allFtids.add(String(ftid).toLowerCase()));
+                }
+            });
+            const uniqueFtids = allFtids.size;
+
+            // Show statistics
+            exportStats.style.display = 'flex';
+            exportStats.innerHTML = `
+                <div class="stat-box">
+                    <div class="stat-number">${totalExports}</div>
+                    <div class="stat-label">Total Exports</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">${totalItems}</div>
+                    <div class="stat-label">Total Items Exported</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">${uniqueFtids}</div>
+                    <div class="stat-label">Unique FTIDs</div>
+                </div>
+            `;
+
+            // Show most recent first
+            const sortedHistory = [...exportHistory].reverse();
+
+            exportList.innerHTML = sortedHistory.map(exp => `
+                <div class="export-item">
+                    <div class="export-item-info">
+                        <div class="export-item-name">${exp.filename}</div>
+                        <div class="export-item-details">${exp.timestamp} • ${exp.itemCount} new items</div>
+                    </div>
+                    <button class="export-item-download" onclick="redownloadExport(${exp.id})">
+                        📥 Download Again
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function redownloadExport(exportId) {
+            const exportRecord = exportHistory.find(exp => exp.id === exportId);
+            if (exportRecord) {
+                downloadExportFile(exportRecord);
+                showStats(`📥 Re-downloaded ${exportRecord.filename}!`, true);
+            }
         }
 
         function showStats(message, success) {
