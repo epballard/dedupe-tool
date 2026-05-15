@@ -629,11 +629,35 @@
         let exportHistory = []; // Store export history with data
 
         function init() {
+            // Load export history from localStorage
+            loadExportHistory();
+
             // Create Master List tab
             createMasterTab();
             // Add two runs by default
             addRun();
             addRun();
+        }
+
+        function saveExportHistory() {
+            try {
+                localStorage.setItem('auditDeduplicatorExports', JSON.stringify(exportHistory));
+            } catch (e) {
+                console.error('Failed to save export history:', e);
+            }
+        }
+
+        function loadExportHistory() {
+            try {
+                const saved = localStorage.getItem('auditDeduplicatorExports');
+                if (saved) {
+                    exportHistory = JSON.parse(saved);
+                    updateExportHistoryUI();
+                }
+            } catch (e) {
+                console.error('Failed to load export history:', e);
+                exportHistory = [];
+            }
         }
 
         function createMasterTab() {
@@ -964,6 +988,7 @@
             }
 
             // Clear export history UI
+            saveExportHistory();
             updateExportHistoryUI();
 
             // Reset counter and add first run
@@ -1215,6 +1240,7 @@
             };
 
             exportHistory.push(exportRecord);
+            saveExportHistory();
             updateExportHistoryUI();
 
             // Create and download the file
