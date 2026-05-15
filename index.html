@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deduplicate - Remove Duplicates from Lists</title>
+    <title>Audit Tracker - Deduplicate Across Runs</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -16,17 +17,15 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
         .container {
             background: white;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 1200px;
+            max-width: 1400px;
             width: 100%;
+            margin: 0 auto;
             padding: 40px;
         }
 
@@ -44,16 +43,88 @@
             font-size: 1.1em;
         }
 
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+        .tabs-container {
             margin-bottom: 20px;
         }
 
-        .panel {
+        .tabs {
             display: flex;
-            flex-direction: column;
+            gap: 8px;
+            border-bottom: 2px solid #dee2e6;
+            overflow-x: auto;
+            padding-bottom: 8px;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            border: none;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            color: #495057;
+            transition: all 0.2s;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab.master {
+            background: #28a745;
+            color: white;
+        }
+
+        .tab.master:hover {
+            background: #218838;
+        }
+
+        .tab .close-btn {
+            margin-left: 8px;
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .tab.active .close-btn {
+            color: white;
+        }
+
+        .tab-title {
+            cursor: text;
+        }
+
+        .tab-title:hover {
+            text-decoration: underline;
+        }
+
+        .tab-title-input {
+            background: white;
+            border: 2px solid #667eea;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+            width: 120px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .panel {
+            margin-bottom: 20px;
         }
 
         .panel-header {
@@ -64,11 +135,14 @@
             border-bottom: none;
             font-weight: 600;
             color: #495057;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         textarea {
             width: 100%;
-            height: 300px;
+            height: 400px;
             padding: 16px;
             border: 1px solid #dee2e6;
             border-radius: 0 0 8px 8px;
@@ -84,8 +158,75 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        #output {
+        .master-output {
             background-color: #f8f9fa;
+        }
+
+        .data-table-container {
+            width: 100%;
+            max-height: 500px;
+            overflow: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0 0 8px 8px;
+            background: white;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+        }
+
+        .data-table thead {
+            position: sticky;
+            top: 0;
+            background: #f8f9fa;
+            z-index: 10;
+        }
+
+        .data-table th {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .data-table .new-row {
+            background-color: #fff3cd;
+            font-weight: bold;
+        }
+
+        .data-table .new-row td:first-child::before {
+            content: "🟡 ";
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: #999;
+            font-style: italic;
+        }
+
+        .highlight-new {
+            background-color: #fff3cd;
+            font-weight: bold;
+        }
+
+        .line-with-highlight {
+            background: linear-gradient(90deg, #fff3cd 0%, transparent 100%);
+            padding: 2px 4px;
+            margin: -2px -4px;
         }
 
         .controls {
@@ -192,11 +333,96 @@
             color: #155724;
         }
 
-        @media (max-width: 768px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
+        .add-run-btn {
+            background: #17a2b8;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
 
+        .add-run-btn:hover {
+            background: #138496;
+        }
+
+        .file-upload-section {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .file-input-label {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .file-input-label:hover {
+            background: #5568d3;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .column-selector {
+            margin-top: 10px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .column-selector.active {
+            display: block;
+        }
+
+        .column-selector label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .column-selector select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 14px;
+            min-height: 120px;
+        }
+
+        .import-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .import-btn:hover {
+            background: #218838;
+        }
+
+        @media (max-width: 768px) {
             .container {
                 padding: 20px;
             }
@@ -226,30 +452,24 @@
 </head>
 <body>
     <div class="container">
-        <h1>✨ Deduplicate</h1>
-        <p class="subtitle">Remove duplicate items from your lists instantly</p>
+        <h1>📊 Audit Tracker</h1>
+        <p class="subtitle">Track audit runs and identify duplicates across multiple runs</p>
 
-        <div class="grid">
-            <div class="panel">
-                <div class="panel-header">📝 Input (paste your list here)</div>
-                <textarea id="input" placeholder="Paste your list here...&#10;One item per line&#10;&#10;Example:&#10;apple&#10;banana&#10;apple&#10;cherry"></textarea>
+        <div class="tabs-container">
+            <div class="tabs" id="tabs">
+                <!-- Tabs will be added dynamically -->
             </div>
+        </div>
 
-            <div class="panel">
-                <div class="panel-header">✅ Output (unique items)</div>
-                <textarea id="output" readonly placeholder="Results will appear here..."></textarea>
-            </div>
+        <div id="tab-contents">
+            <!-- Tab contents will be added dynamically -->
         </div>
 
         <div class="controls">
             <div class="options">
                 <div class="option">
                     <input type="checkbox" id="ignoreCase">
-                    <label for="ignoreCase">Ignore case (treat "Apple" = "apple")</label>
-                </div>
-                <div class="option">
-                    <input type="checkbox" id="preserveOrder" checked>
-                    <label for="preserveOrder">Preserve original order</label>
+                    <label for="ignoreCase">Ignore case</label>
                 </div>
                 <div class="option">
                     <input type="checkbox" id="removeEmpty" checked>
@@ -262,123 +482,608 @@
             </div>
 
             <div class="buttons">
-                <button class="btn-primary" onclick="deduplicate()">
+                <button class="btn-primary" onclick="updateMasterList()">
                     <span class="icon">🔄</span>
-                    Remove Duplicates
+                    Update Master List
                 </button>
-                <button class="btn-success" onclick="copyToClipboard()">
+                <button class="btn-success" onclick="exportToExcel()">
+                    <span class="icon">📊</span>
+                    Export to Excel
+                </button>
+                <button class="btn-success" onclick="copyCurrentTab()">
                     <span class="icon">📋</span>
-                    Copy Results
+                    Copy Current Tab
                 </button>
-                <button class="btn-secondary" onclick="clearAll()">
+                <button class="btn-secondary" onclick="clearCurrentTab()">
                     <span class="icon">🗑️</span>
-                    Clear All
+                    Clear Current Tab
                 </button>
             </div>
 
             <div id="stats" class="stats">
-                Ready! Paste your list above and click "Remove Duplicates"
+                Click "+ Add Run" to start your first audit run
             </div>
         </div>
     </div>
 
     <script>
-        function deduplicate() {
-            const input = document.getElementById('input').value;
-            const ignoreCase = document.getElementById('ignoreCase').checked;
-            const preserveOrder = document.getElementById('preserveOrder').checked;
-            const removeEmpty = document.getElementById('removeEmpty').checked;
-            const trim = document.getElementById('trim').checked;
+        let runs = [];
+        let activeTab = null;
+        let runCounter = 0;
+        let excelData = {}; // Store parsed Excel data per run
+        let runDataWithIds = {}; // Store display data with corresponding FTID values per run
+        let columnHeaders = {}; // Store column headers per run
 
-            if (!input.trim()) {
-                showStats('⚠️ Please paste some data first!', false);
+        function init() {
+            // Create Master List tab
+            createMasterTab();
+            // Add first run
+            addRun();
+        }
+
+        function createMasterTab() {
+            const tabsDiv = document.getElementById('tabs');
+            const contentsDiv = document.getElementById('tab-contents');
+
+            // Create master tab button
+            const masterTab = document.createElement('button');
+            masterTab.className = 'tab master';
+            masterTab.textContent = '📋 Master List';
+            masterTab.onclick = () => switchTab('master');
+            tabsDiv.appendChild(masterTab);
+
+            // Create master tab content
+            const masterContent = document.createElement('div');
+            masterContent.id = 'tab-master';
+            masterContent.className = 'tab-content';
+            masterContent.innerHTML = `
+                <div class="panel">
+                    <div class="panel-header">
+                        📋 Master List (All Runs Combined - Duplicates Removed)
+                        <span style="font-size: 12px; color: #666; font-weight: normal;">
+                            🟡 = New items from latest run
+                        </span>
+                    </div>
+                    <div id="master-table-container" class="data-table-container">
+                        <div class="empty-state">Master list will appear here after you update...</div>
+                    </div>
+                </div>
+            `;
+            contentsDiv.appendChild(masterContent);
+        }
+
+        function addRun() {
+            runCounter++;
+            const runId = `run-${runCounter}`;
+            const runName = `Run ${runCounter}`;
+
+            runs.push({ id: runId, name: runName, data: [] });
+
+            const tabsDiv = document.getElementById('tabs');
+            const contentsDiv = document.getElementById('tab-contents');
+
+            // Create tab button
+            const tab = document.createElement('button');
+            tab.className = 'tab';
+            tab.id = `tab-btn-${runId}`;
+            tab.innerHTML = `<span class="tab-title" id="title-${runId}" ondblclick="editTabName('${runId}')">${runName}</span> <span class="close-btn" onclick="event.stopPropagation(); removeRun('${runId}')"">×</span>`;
+            tab.onclick = () => switchTab(runId);
+
+            // Insert before master tab
+            const masterTab = tabsDiv.querySelector('.tab.master');
+            tabsDiv.insertBefore(tab, masterTab);
+
+            // Create tab content
+            const content = document.createElement('div');
+            content.id = `tab-${runId}`;
+            content.className = 'tab-content';
+            content.innerHTML = `
+                <div class="file-upload-section">
+                    <div class="file-input-wrapper">
+                        <label class="file-input-label" for="file-${runId}">
+                            📁 Import from Excel
+                        </label>
+                        <input type="file" id="file-${runId}" accept=".xlsx,.xls,.csv"
+                               onchange="handleFileUpload('${runId}', event)">
+                        <span id="filename-${runId}" style="color: #666; font-size: 14px;"></span>
+                    </div>
+                    <div id="column-selector-${runId}" class="column-selector">
+                        <label>Select FTID column for duplicate detection:</label>
+                        <select id="id-column-select-${runId}" onchange="importAllColumns('${runId}')">
+                            <option value="">-- Select FTID column --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        📝 ${runName} - Import your audit data
+                        <button class="add-run-btn" onclick="addRun()">+ Add Run</button>
+                    </div>
+                    <div id="table-container-${runId}" class="data-table-container">
+                        <div class="empty-state">Import Excel file above to view data</div>
+                    </div>
+                </div>
+            `;
+            contentsDiv.appendChild(content);
+
+            // Switch to new tab
+            switchTab(runId);
+        }
+
+        function removeRun(runId) {
+            if (!confirm('Remove this run?')) return;
+
+            runs = runs.filter(r => r.id !== runId);
+            document.getElementById(`tab-btn-${runId}`).remove();
+            document.getElementById(`tab-${runId}`).remove();
+
+            // Switch to master or another tab
+            if (runs.length > 0) {
+                switchTab(runs[0].id);
+            } else {
+                switchTab('master');
+            }
+
+            updateMasterList();
+        }
+
+        function switchTab(tabId) {
+            activeTab = tabId;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            const activeTabBtn = tabId === 'master'
+                ? document.querySelector('.tab.master')
+                : document.getElementById(`tab-btn-${tabId}`);
+            if (activeTabBtn) activeTabBtn.classList.add('active');
+
+            // Update tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+
+            showStats(`Viewing ${tabId === 'master' ? 'Master List' : runs.find(r => r.id === tabId)?.name}`, false);
+        }
+
+        function updateMasterList() {
+            const ignoreCase = document.getElementById('ignoreCase').checked;
+
+            // Collect all data from runs
+            let allItemsWithIds = [];
+            let latestRunFtids = new Set();
+            let previousRunFtids = new Set();
+
+            runs.forEach((run, index) => {
+                const runData = runDataWithIds[run.id];
+
+                if (!runData || runData.length === 0) {
+                    return;
+                }
+
+                // Process structured data with FTIDs
+                runData.forEach(item => {
+                    allItemsWithIds.push({
+                        ...item,
+                        runIndex: index
+                    });
+
+                    const ftidKey = ignoreCase ? item.ftid.toLowerCase() : item.ftid;
+
+                    if (index === runs.length - 1) {
+                        latestRunFtids.add(ftidKey);
+                    } else {
+                        previousRunFtids.add(ftidKey);
+                    }
+                });
+            });
+
+            if (allItemsWithIds.length === 0) {
+                showStats('⚠️ No data in any runs!', false);
                 return;
             }
 
-            let lines = input.split('\n');
-            const originalCount = lines.length;
+            // Deduplicate based on FTID
+            const seenFtids = new Set();
+            const uniqueRows = [];
+            const newRows = [];
 
-            // Trim whitespace if requested
-            if (trim) {
-                lines = lines.map(line => line.trim());
-            }
+            allItemsWithIds.forEach(item => {
+                const ftidKey = ignoreCase ? item.ftid.toLowerCase() : item.ftid;
 
-            // Remove empty lines if requested
-            if (removeEmpty) {
-                lines = lines.filter(line => line.length > 0);
-            }
+                if (!seenFtids.has(ftidKey)) {
+                    seenFtids.add(ftidKey);
 
-            let uniqueLines;
+                    const isNew = latestRunFtids.has(ftidKey) && !previousRunFtids.has(ftidKey);
 
-            if (preserveOrder) {
-                // Preserve order using Set
-                const seen = new Set();
-                uniqueLines = [];
+                    uniqueRows.push({
+                        cells: item.cells,
+                        isNew: isNew
+                    });
 
-                for (const line of lines) {
-                    const key = ignoreCase ? line.toLowerCase() : line;
-                    if (!seen.has(key)) {
-                        seen.add(key);
-                        uniqueLines.push(line);
+                    if (isNew) {
+                        newRows.push(item.cells);
                     }
                 }
-            } else {
-                // Sort the results
-                if (ignoreCase) {
-                    const uniqueMap = new Map();
-                    for (const line of lines) {
-                        const key = line.toLowerCase();
-                        if (!uniqueMap.has(key)) {
-                            uniqueMap.set(key, line);
-                        }
-                    }
-                    uniqueLines = Array.from(uniqueMap.values()).sort((a, b) =>
-                        a.toLowerCase().localeCompare(b.toLowerCase())
-                    );
-                } else {
-                    uniqueLines = [...new Set(lines)].sort();
+            });
+
+            // Get headers from first run that has data
+            let masterHeaders = [];
+            for (const run of runs) {
+                if (columnHeaders[run.id]) {
+                    masterHeaders = columnHeaders[run.id];
+                    break;
                 }
             }
 
-            // Display results
-            document.getElementById('output').value = uniqueLines.join('\n');
+            // Store data for export (with proper cell arrays)
+            masterListData = {
+                rows: uniqueRows.map(r => r.cells),
+                headers: masterHeaders,
+                newRows: newRows
+            };
 
-            // Show stats
-            const duplicatesRemoved = lines.length - uniqueLines.length;
+            // Display as table
+            renderMasterTable(masterHeaders, uniqueRows);
+
+            const totalDupes = allItemsWithIds.length - uniqueRows.length;
             showStats(
-                `✅ Done! ${uniqueLines.length} unique items | ${duplicatesRemoved} duplicates removed`,
+                `✅ Master List Updated! ${uniqueRows.length} unique FTIDs | ${newRows.length} new from latest run | ${totalDupes} duplicates removed`,
                 true
             );
+
+            switchTab('master');
         }
 
-        function copyToClipboard() {
-            const output = document.getElementById('output');
+        function renderMasterTable(headers, rows) {
+            const container = document.getElementById('master-table-container');
 
-            if (!output.value.trim()) {
-                showStats('⚠️ Nothing to copy! Process your list first.', false);
+            if (rows.length === 0) {
+                container.innerHTML = '<div class="empty-state">No data to display</div>';
                 return;
             }
 
-            output.select();
-            document.execCommand('copy');
+            let tableHTML = '<table class="data-table"><thead><tr>';
 
-            // Try modern API if available
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(output.value);
-            }
+            headers.forEach(header => {
+                tableHTML += `<th>${header}</th>`;
+            });
 
-            showStats('📋 Copied to clipboard!', true);
+            tableHTML += '</tr></thead><tbody>';
 
-            // Clear selection after a moment
-            setTimeout(() => {
-                window.getSelection().removeAllRanges();
-            }, 100);
+            rows.forEach(row => {
+                const rowClass = row.isNew ? ' class="new-row"' : '';
+                tableHTML += `<tr${rowClass}>`;
+                row.cells.forEach(cell => {
+                    tableHTML += `<td>${cell}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
         }
 
-        function clearAll() {
-            document.getElementById('input').value = '';
-            document.getElementById('output').value = '';
-            showStats('Ready! Paste your list above and click "Remove Duplicates"', false);
+        function copyCurrentTab() {
+            const containerId = activeTab === 'master'
+                ? 'master-table-container'
+                : `table-container-${activeTab}`;
+
+            const container = document.getElementById(containerId);
+            if (!container) {
+                showStats('⚠️ Nothing to copy!', false);
+                return;
+            }
+
+            const table = container.querySelector('table');
+            if (!table) {
+                showStats('⚠️ No data to copy!', false);
+                return;
+            }
+
+            // Convert table to TSV (tab-separated) for Excel paste
+            let tsvData = '';
+            const rows = table.querySelectorAll('tr');
+
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                const rowData = Array.from(cells).map(cell => {
+                    // Remove the emoji indicator
+                    let text = cell.textContent.trim();
+                    text = text.replace(/^🟡\s*/, '');
+                    return text;
+                });
+                tsvData += rowData.join('\t') + '\n';
+            });
+
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(tsvData);
+                showStats('📋 Copied table to clipboard! (Paste into Excel)', true);
+            } else {
+                showStats('⚠️ Clipboard not supported', false);
+            }
+        }
+
+        function clearCurrentTab() {
+            if (activeTab === 'master') {
+                showStats('⚠️ Cannot clear master list. Clear individual runs instead.', false);
+                return;
+            }
+
+            const container = document.getElementById(`table-container-${activeTab}`);
+            if (container) {
+                container.innerHTML = '<div class="empty-state">Import Excel file to view data</div>';
+                delete runDataWithIds[activeTab];
+                delete columnHeaders[activeTab];
+                showStats('Cleared!', true);
+            }
+        }
+
+        function handleFileUpload(runId, event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const filenameSpan = document.getElementById(`filename-${runId}`);
+            filenameSpan.textContent = `Loading ${file.name}...`;
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // Get first sheet
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+                    if (jsonData.length === 0) {
+                        showStats('⚠️ Excel file is empty!', false);
+                        return;
+                    }
+
+                    // Store the data
+                    excelData[runId] = jsonData;
+
+                    // Get column headers (first row)
+                    const headers = jsonData[0];
+                    const idColumnSelect = document.getElementById(`id-column-select-${runId}`);
+
+                    idColumnSelect.innerHTML = '<option value="">-- Select FTID column --</option>';
+
+                    let foundFtid = false;
+                    headers.forEach((header, index) => {
+                        // Add to ID column selector
+                        const idOption = document.createElement('option');
+                        idOption.value = index;
+                        idOption.textContent = `${header} (Column ${String.fromCharCode(65 + index)})`;
+                        idColumnSelect.appendChild(idOption);
+
+                        // Auto-select FTID if found
+                        if (header && header.toString().toUpperCase().includes('FTID')) {
+                            idOption.selected = true;
+                            foundFtid = true;
+                        }
+                    });
+
+                    // Show column selector
+                    document.getElementById(`column-selector-${runId}`).classList.add('active');
+                    filenameSpan.textContent = `✓ ${file.name} loaded`;
+
+                    if (foundFtid) {
+                        // Auto-import if FTID was found
+                        showStats(`Excel file loaded! Auto-importing with FTID column...`, true);
+                        importAllColumns(runId);
+                    } else {
+                        showStats(`Excel file loaded! Select the FTID column below.`, true);
+                    }
+
+                } catch (error) {
+                    showStats(`⚠️ Error reading Excel file: ${error.message}`, false);
+                    filenameSpan.textContent = '';
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function importAllColumns(runId) {
+            const idColumnSelect = document.getElementById(`id-column-select-${runId}`);
+            const idColIndex = parseInt(idColumnSelect.value);
+
+            if (isNaN(idColIndex)) {
+                showStats('⚠️ Please select the FTID column!', false);
+                return;
+            }
+
+            const data = excelData[runId];
+            if (!data) return;
+
+            // Get ALL column headers
+            const headers = data[0];
+            columnHeaders[runId] = headers;
+
+            // Build data structure: each row has all cells and FTID
+            const rowsData = [];
+
+            for (let i = 1; i < data.length; i++) {
+                const row = data[i];
+                const ftid = row[idColIndex];
+
+                if (ftid === undefined || ftid === null || ftid === '') continue;
+
+                // Collect ALL columns
+                const cells = headers.map((_, colIdx) => row[colIdx] || '');
+
+                rowsData.push({
+                    ftid: String(ftid).trim(),
+                    cells: cells
+                });
+            }
+
+            // Store the data with IDs
+            runDataWithIds[runId] = rowsData;
+
+            // Display as table
+            renderTable(runId, headers, rowsData);
+
+            showStats(`✅ Imported ${rowsData.length} rows with all columns (deduping by FTID)`, true);
+        }
+
+        function renderTable(runId, headers, rows) {
+            const container = document.getElementById(`table-container-${runId}`);
+
+            if (rows.length === 0) {
+                container.innerHTML = '<div class="empty-state">No data to display</div>';
+                return;
+            }
+
+            let tableHTML = '<table class="data-table"><thead><tr>';
+
+            headers.forEach(header => {
+                tableHTML += `<th>${header}</th>`;
+            });
+
+            tableHTML += '</tr></thead><tbody>';
+
+            rows.forEach(row => {
+                tableHTML += '<tr>';
+                row.cells.forEach(cell => {
+                    tableHTML += `<td>${cell}</td>`;
+                });
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table>';
+            container.innerHTML = tableHTML;
+        }
+
+        function editTabName(runId) {
+            const titleSpan = document.getElementById(`title-${runId}`);
+            const currentName = titleSpan.textContent;
+
+            // Create input
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentName;
+            input.className = 'tab-title-input';
+
+            // Replace span with input
+            titleSpan.replaceWith(input);
+            input.focus();
+            input.select();
+
+            // Save on blur or enter
+            const saveTitle = () => {
+                const newName = input.value.trim() || currentName;
+
+                // Update run name
+                const run = runs.find(r => r.id === runId);
+                if (run) run.name = newName;
+
+                // Create new span
+                const newSpan = document.createElement('span');
+                newSpan.className = 'tab-title';
+                newSpan.id = `title-${runId}`;
+                newSpan.textContent = newName;
+                newSpan.ondblclick = () => editTabName(runId);
+
+                input.replaceWith(newSpan);
+
+                // Update panel header
+                updatePanelHeader(runId, newName);
+            };
+
+            input.onblur = saveTitle;
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    saveTitle();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    const newSpan = document.createElement('span');
+                    newSpan.className = 'tab-title';
+                    newSpan.id = `title-${runId}`;
+                    newSpan.textContent = currentName;
+                    newSpan.ondblclick = () => editTabName(runId);
+                    input.replaceWith(newSpan);
+                }
+            };
+        }
+
+        function updatePanelHeader(runId, newName) {
+            const panelHeader = document.querySelector(`#tab-${runId} .panel-header`);
+            if (panelHeader) {
+                const addButton = panelHeader.querySelector('.add-run-btn');
+                panelHeader.innerHTML = `📝 ${newName} - Paste or import your audit data`;
+                if (addButton) {
+                    panelHeader.appendChild(addButton);
+                } else {
+                    panelHeader.innerHTML += '<button class="add-run-btn" onclick="addRun()">+ Add Run</button>';
+                }
+            }
+        }
+
+        // Store master list data for export
+        let masterListData = { rows: [], headers: [], newRows: [] };
+
+        function exportToExcel() {
+            if (masterListData.newRows.length === 0) {
+                showStats('⚠️ No new items to export! Update Master List first.', false);
+                return;
+            }
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+
+            // Prepare data - headers + new rows only
+            const excelData = [
+                masterListData.headers // Header row
+            ];
+
+            masterListData.newRows.forEach(rowCells => {
+                excelData.push(rowCells);
+            });
+
+            // Create worksheet
+            const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+            // Set column widths based on number of columns
+            const numColumns = masterListData.headers.length;
+            ws['!cols'] = Array(numColumns).fill({ wch: 20 });
+
+            // Apply yellow highlighting to all data rows (except header)
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            for (let row = 1; row <= range.e.r; row++) {
+                for (let col = 0; col < numColumns; col++) {
+                    const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+
+                    if (ws[cellAddress]) {
+                        ws[cellAddress].s = {
+                            fill: {
+                                fgColor: { rgb: "FFFF00" }
+                            },
+                            font: {
+                                bold: true
+                            }
+                        };
+                    }
+                }
+            }
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, "New Items");
+
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const filename = `audit-new-items-${timestamp}.xlsx`;
+
+            // Download
+            XLSX.writeFile(wb, filename);
+
+            showStats(`✅ Exported ${masterListData.newRows.length} new items to ${filename}!`, true);
         }
 
         function showStats(message, success) {
@@ -387,24 +1092,20 @@
             stats.className = success ? 'stats success' : 'stats';
         }
 
-        // Allow keyboard shortcuts
+        // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
-            // Ctrl/Cmd + Enter to deduplicate
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
-                deduplicate();
+                updateMasterList();
             }
-            // Ctrl/Cmd + Shift + C to copy
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'C') {
                 e.preventDefault();
-                copyToClipboard();
+                copyCurrentTab();
             }
         });
 
-        // Auto-focus input on load
-        window.onload = function() {
-            document.getElementById('input').focus();
-        };
+        // Initialize on load
+        window.onload = init;
     </script>
 </body>
 </html>
