@@ -498,6 +498,10 @@
                     <span class="icon">🗑️</span>
                     Clear Current Tab
                 </button>
+                <button class="btn-secondary" onclick="clearAllTabs()" style="background: #dc3545;">
+                    <span class="icon">🗑️</span>
+                    Clear All Tabs
+                </button>
             </div>
 
             <div id="stats" class="stats">
@@ -819,6 +823,39 @@
                 delete columnHeaders[activeTab];
                 showStats('Cleared!', true);
             }
+        }
+
+        function clearAllTabs() {
+            if (!confirm('⚠️ Clear ALL tabs and start fresh? This cannot be undone.')) {
+                return;
+            }
+
+            // Remove all run tabs (keep master)
+            runs.forEach(run => {
+                const tabBtn = document.getElementById(`tab-btn-${run.id}`);
+                const tabContent = document.getElementById(`tab-${run.id}`);
+                if (tabBtn) tabBtn.remove();
+                if (tabContent) tabContent.remove();
+            });
+
+            // Clear all data
+            runs = [];
+            runDataWithIds = {};
+            columnHeaders = {};
+            excelData = {};
+            masterListData = { rows: [], headers: [], newRows: [] };
+
+            // Clear master list
+            const masterContainer = document.getElementById('master-table-container');
+            if (masterContainer) {
+                masterContainer.innerHTML = '<div class="empty-state">Master list will appear here after you update...</div>';
+            }
+
+            // Reset counter and add first run
+            runCounter = 0;
+            addRun();
+
+            showStats('✅ All tabs cleared! Starting fresh.', true);
         }
 
         function handleFileUpload(runId, event) {
