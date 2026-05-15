@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audit Deduplicator - Deduplicate Across Runs</title>
+    <title>Audit Deduplicator - Auto-Load from Downloads</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         * {
@@ -41,6 +41,51 @@
             color: #666;
             margin-bottom: 30px;
             font-size: 1.1em;
+        }
+
+        .quick-start {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .quick-start h2 {
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .quick-start p {
+            margin-bottom: 20px;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+
+        .quick-start-btn {
+            background: white;
+            color: #667eea;
+            padding: 16px 32px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .quick-start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        .quick-start-btn:active {
+            transform: translateY(0);
         }
 
         .tabs-container {
@@ -105,16 +150,6 @@
             text-decoration: underline;
         }
 
-        .tab-title-input {
-            background: white;
-            border: 2px solid #667eea;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 14px;
-            width: 120px;
-        }
-
         .tab-content {
             display: none;
         }
@@ -138,28 +173,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-        }
-
-        textarea {
-            width: 100%;
-            height: 400px;
-            padding: 16px;
-            border: 1px solid #dee2e6;
-            border-radius: 0 0 8px 8px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 14px;
-            resize: vertical;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-
-        textarea:focus {
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .master-output {
-            background-color: #f8f9fa;
         }
 
         .data-table-container {
@@ -218,17 +231,6 @@
             font-style: italic;
         }
 
-        .highlight-new {
-            background-color: #fff3cd;
-            font-weight: bold;
-        }
-
-        .line-with-highlight {
-            background: linear-gradient(90deg, #fff3cd 0%, transparent 100%);
-            padding: 2px 4px;
-            margin: -2px -4px;
-        }
-
         .controls {
             display: flex;
             flex-direction: column;
@@ -267,6 +269,7 @@
             display: flex;
             gap: 12px;
             justify-content: center;
+            flex-wrap: wrap;
         }
 
         button {
@@ -333,20 +336,6 @@
             color: #155724;
         }
 
-        .add-run-btn {
-            background: #17a2b8;
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .add-run-btn:hover {
-            background: #138496;
-        }
-
         .file-upload-section {
             margin-bottom: 15px;
             padding: 15px;
@@ -404,22 +393,6 @@
             border: 1px solid #dee2e6;
             border-radius: 4px;
             font-size: 14px;
-            min-height: 120px;
-        }
-
-        .import-btn {
-            background: #28a745;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-
-        .import-btn:hover {
-            background: #218838;
         }
 
         .export-history {
@@ -517,6 +490,13 @@
             margin-top: 4px;
         }
 
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
@@ -547,14 +527,15 @@
 </head>
 <body>
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <div>
-                <h1>📊 Audit Deduplicator</h1>
-                <p class="subtitle">Track audit runs and identify duplicates across multiple runs</p>
-            </div>
-            <button class="btn-primary" onclick="updateMasterList()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);">
-                <span class="icon">🔄</span>
-                Update Master List
+        <h1>📊 Audit Deduplicator</h1>
+        <p class="subtitle">Auto-load QB exports from Downloads and deduplicate</p>
+
+        <div class="quick-start">
+            <h2>🚀 Quick Start</h2>
+            <p>Click the button below to select your Downloads folder. The app will automatically find the 2 most recent Excel exports and load them into Run 1 and Run 2, then create the master list for you.</p>
+            <button class="quick-start-btn" onclick="autoLoadFromDownloads()">
+                <span class="icon">📂</span>
+                Auto-Load from Downloads
             </button>
         </div>
 
@@ -585,26 +566,26 @@
             </div>
 
             <div class="buttons">
+                <button class="btn-primary" onclick="updateMasterList()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);">
+                    <span class="icon">🔄</span>
+                    Update Master List
+                </button>
                 <button class="btn-success" onclick="exportToExcel()">
                     <span class="icon">📊</span>
-                    Export to Excel
+                    Export New Items
                 </button>
                 <button class="btn-success" onclick="copyCurrentTab()">
                     <span class="icon">📋</span>
                     Copy Current Tab
                 </button>
-                <button class="btn-secondary" onclick="clearCurrentTab()">
-                    <span class="icon">🗑️</span>
-                    Clear Current Tab
-                </button>
                 <button class="btn-secondary" onclick="clearAllTabs()" style="background: #dc3545;">
                     <span class="icon">🗑️</span>
-                    Clear All Tabs
+                    Clear All & Start Over
                 </button>
             </div>
 
             <div id="stats" class="stats">
-                Click "+ Add Run" to start your first audit run
+                Click "Auto-Load from Downloads" to get started
             </div>
 
             <div class="export-history">
@@ -623,20 +604,15 @@
         let runs = [];
         let activeTab = null;
         let runCounter = 0;
-        let excelData = {}; // Store parsed Excel data per run
         let runDataWithIds = {}; // Store display data with corresponding FTID values per run
         let columnHeaders = {}; // Store column headers per run
         let exportHistory = []; // Store export history with data
+        let masterListData = { rows: [], headers: [], newRows: [] };
 
         function init() {
-            // Load export history from localStorage
             loadExportHistory();
-
-            // Create Master List tab
             createMasterTab();
-            // Add two runs by default
-            addRun();
-            addRun();
+            // Don't auto-create runs - let user use the auto-load feature
         }
 
         function saveExportHistory() {
@@ -664,14 +640,12 @@
             const tabsDiv = document.getElementById('tabs');
             const contentsDiv = document.getElementById('tab-contents');
 
-            // Create master tab button
             const masterTab = document.createElement('button');
             masterTab.className = 'tab master';
             masterTab.textContent = '📋 Master List';
             masterTab.onclick = () => switchTab('master');
             tabsDiv.appendChild(masterTab);
 
-            // Create master tab content
             const masterContent = document.createElement('div');
             masterContent.id = 'tab-master';
             masterContent.className = 'tab-content';
@@ -684,92 +658,194 @@
                         </span>
                     </div>
                     <div id="master-table-container" class="data-table-container">
-                        <div class="empty-state">Master list will appear here after you update...</div>
+                        <div class="empty-state">Master list will appear here after loading data...</div>
                     </div>
                 </div>
             `;
             contentsDiv.appendChild(masterContent);
         }
 
-        function addRun() {
+        async function autoLoadFromDownloads() {
+            try {
+                showStats('📂 Opening folder picker...', false);
+
+                // Request directory access
+                const dirHandle = await window.showDirectoryPicker({
+                    mode: 'read',
+                    startIn: 'downloads'
+                });
+
+                showStats('🔍 Scanning for Excel files...', false);
+
+                // Find all Excel files
+                const excelFiles = [];
+                for await (const entry of dirHandle.values()) {
+                    if (entry.kind === 'file') {
+                        const name = entry.name.toLowerCase();
+                        if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) {
+                            const file = await entry.getFile();
+                            excelFiles.push({
+                                name: entry.name,
+                                file: file,
+                                modified: file.lastModified
+                            });
+                        }
+                    }
+                }
+
+                if (excelFiles.length === 0) {
+                    showStats('⚠️ No Excel files found in selected folder!', false);
+                    return;
+                }
+
+                // Sort by modification date (newest first)
+                excelFiles.sort((a, b) => b.modified - a.modified);
+
+                // Take the 2 most recent
+                const filesToLoad = excelFiles.slice(0, 2);
+
+                if (filesToLoad.length < 2) {
+                    showStats(`⚠️ Only found ${filesToLoad.length} Excel file(s). Need at least 2 files.`, false);
+                    return;
+                }
+
+                showStats(`✅ Found ${filesToLoad.length} recent files! Loading...`, true);
+
+                // Clear existing runs
+                clearAllTabsSilent();
+
+                // Create runs and load files
+                for (let i = 0; i < filesToLoad.length; i++) {
+                    const fileInfo = filesToLoad[i];
+                    const runId = addRunWithName(`Run ${i + 1}`);
+
+                    // Format the date nicely
+                    const date = new Date(fileInfo.modified);
+                    const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+
+                    showStats(`📥 Loading ${fileInfo.name} (${dateStr}) into Run ${i + 1}...`, false);
+
+                    await loadFileIntoRun(runId, fileInfo.file);
+                }
+
+                // Auto-update master list
+                updateMasterList();
+
+                showStats('✅ Auto-load complete! Check Master List tab.', true);
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    showStats('❌ Folder selection cancelled', false);
+                } else {
+                    console.error('Error loading from downloads:', error);
+                    showStats(`⚠️ Error: ${error.message}`, false);
+                }
+            }
+        }
+
+        function addRunWithName(name) {
             runCounter++;
             const runId = `run-${runCounter}`;
-            const runName = `Run ${runCounter}`;
 
-            runs.push({ id: runId, name: runName, data: [] });
+            runs.push({ id: runId, name: name, data: [] });
 
             const tabsDiv = document.getElementById('tabs');
             const contentsDiv = document.getElementById('tab-contents');
 
-            // Create tab button
             const tab = document.createElement('button');
             tab.className = 'tab';
             tab.id = `tab-btn-${runId}`;
-            tab.innerHTML = `<span class="tab-title" id="title-${runId}" ondblclick="editTabName('${runId}')">${runName}</span> <span class="close-btn" onclick="event.stopPropagation(); removeRun('${runId}')"">×</span>`;
+            tab.innerHTML = `<span class="tab-title">${name}</span>`;
             tab.onclick = () => switchTab(runId);
 
-            // Insert before master tab
             const masterTab = tabsDiv.querySelector('.tab.master');
             tabsDiv.insertBefore(tab, masterTab);
 
-            // Create tab content
             const content = document.createElement('div');
             content.id = `tab-${runId}`;
             content.className = 'tab-content';
             content.innerHTML = `
-                <div class="file-upload-section">
-                    <div class="file-input-wrapper">
-                        <label class="file-input-label" for="file-${runId}">
-                            📁 Import from Excel
-                        </label>
-                        <input type="file" id="file-${runId}" accept=".xlsx,.xls,.csv"
-                               onchange="handleFileUpload('${runId}', event)">
-                        <span id="filename-${runId}" style="color: #666; font-size: 14px;"></span>
-                    </div>
-                    <div id="column-selector-${runId}" class="column-selector">
-                        <label>Select FTID column for duplicate detection:</label>
-                        <select id="id-column-select-${runId}" onchange="importAllColumns('${runId}')">
-                            <option value="">-- Select FTID column --</option>
-                        </select>
-                    </div>
-                </div>
                 <div class="panel">
                     <div class="panel-header">
-                        📝 ${runName} - Import your audit data
-                        <button class="add-run-btn" onclick="addRun()">+ Add Run</button>
+                        📝 ${name}
                     </div>
                     <div id="table-container-${runId}" class="data-table-container">
-                        <div class="empty-state">Import Excel file above to view data</div>
+                        <div class="empty-state">Loading...</div>
                     </div>
                 </div>
             `;
             contentsDiv.appendChild(content);
 
-            // Switch to new tab
-            switchTab(runId);
+            return runId;
         }
 
-        function removeRun(runId) {
-            if (!confirm('Remove this run?')) return;
+        async function loadFileIntoRun(runId, file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
 
-            runs = runs.filter(r => r.id !== runId);
-            document.getElementById(`tab-btn-${runId}`).remove();
-            document.getElementById(`tab-${runId}`).remove();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
 
-            // Switch to master or another tab
-            if (runs.length > 0) {
-                switchTab(runs[0].id);
-            } else {
-                switchTab('master');
-            }
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-            updateMasterList();
+                        if (jsonData.length === 0) {
+                            reject(new Error('Excel file is empty'));
+                            return;
+                        }
+
+                        const headers = jsonData[0];
+                        columnHeaders[runId] = headers;
+
+                        // Find FTID column
+                        let ftidColIndex = -1;
+                        headers.forEach((header, index) => {
+                            if (header && header.toString().toUpperCase().includes('FTID')) {
+                                ftidColIndex = index;
+                            }
+                        });
+
+                        if (ftidColIndex === -1) {
+                            reject(new Error('No FTID column found'));
+                            return;
+                        }
+
+                        // Build data structure
+                        const rowsData = [];
+                        for (let i = 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            const ftid = row[ftidColIndex];
+
+                            if (ftid === undefined || ftid === null || ftid === '') continue;
+
+                            const cells = headers.map((_, colIdx) => row[colIdx] || '');
+
+                            rowsData.push({
+                                ftid: String(ftid).trim(),
+                                cells: cells
+                            });
+                        }
+
+                        runDataWithIds[runId] = rowsData;
+                        renderTable(runId, headers, rowsData);
+
+                        resolve();
+
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                reader.onerror = () => reject(new Error('Failed to read file'));
+                reader.readAsArrayBuffer(file);
+            });
         }
 
         function switchTab(tabId) {
             activeTab = tabId;
 
-            // Update tab buttons
             document.querySelectorAll('.tab').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -778,19 +854,15 @@
                 : document.getElementById(`tab-btn-${tabId}`);
             if (activeTabBtn) activeTabBtn.classList.add('active');
 
-            // Update tab contents
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
             document.getElementById(`tab-${tabId}`).classList.add('active');
-
-            showStats(`Viewing ${tabId === 'master' ? 'Master List' : runs.find(r => r.id === tabId)?.name}`, false);
         }
 
         function updateMasterList() {
             const ignoreCase = document.getElementById('ignoreCase').checked;
 
-            // Collect all data from runs
             let allItemsWithIds = [];
             let latestRunFtids = new Set();
             let previousRunFtids = new Set();
@@ -802,7 +874,6 @@
                     return;
                 }
 
-                // Process structured data with FTIDs
                 runData.forEach(item => {
                     allItemsWithIds.push({
                         ...item,
@@ -824,7 +895,6 @@
                 return;
             }
 
-            // Deduplicate based on FTID
             const seenFtids = new Set();
             const uniqueRows = [];
             const newRows = [];
@@ -848,7 +918,6 @@
                 }
             });
 
-            // Get headers from first run that has data
             let masterHeaders = [];
             for (const run of runs) {
                 if (columnHeaders[run.id]) {
@@ -857,14 +926,12 @@
                 }
             }
 
-            // Store data for export (with proper cell arrays)
             masterListData = {
                 rows: uniqueRows.map(r => r.cells),
                 headers: masterHeaders,
                 newRows: newRows
             };
 
-            // Display as table
             renderMasterTable(masterHeaders, uniqueRows);
 
             const totalDupes = allItemsWithIds.length - uniqueRows.length;
@@ -905,210 +972,6 @@
             container.innerHTML = tableHTML;
         }
 
-        function copyCurrentTab() {
-            const containerId = activeTab === 'master'
-                ? 'master-table-container'
-                : `table-container-${activeTab}`;
-
-            const container = document.getElementById(containerId);
-            if (!container) {
-                showStats('⚠️ Nothing to copy!', false);
-                return;
-            }
-
-            const table = container.querySelector('table');
-            if (!table) {
-                showStats('⚠️ No data to copy!', false);
-                return;
-            }
-
-            // Convert table to TSV (tab-separated) for Excel paste
-            let tsvData = '';
-            const rows = table.querySelectorAll('tr');
-
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('th, td');
-                const rowData = Array.from(cells).map(cell => {
-                    // Remove the emoji indicator
-                    let text = cell.textContent.trim();
-                    text = text.replace(/^🟡\s*/, '');
-                    return text;
-                });
-                tsvData += rowData.join('\t') + '\n';
-            });
-
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(tsvData);
-                showStats('📋 Copied table to clipboard! (Paste into Excel)', true);
-            } else {
-                showStats('⚠️ Clipboard not supported', false);
-            }
-        }
-
-        function clearCurrentTab() {
-            if (activeTab === 'master') {
-                showStats('⚠️ Cannot clear master list. Clear individual runs instead.', false);
-                return;
-            }
-
-            const container = document.getElementById(`table-container-${activeTab}`);
-            if (container) {
-                container.innerHTML = '<div class="empty-state">Import Excel file to view data</div>';
-                delete runDataWithIds[activeTab];
-                delete columnHeaders[activeTab];
-                showStats('Cleared!', true);
-            }
-        }
-
-        function clearAllTabs() {
-            if (!confirm('⚠️ Clear ALL tabs and start fresh? This cannot be undone.')) {
-                return;
-            }
-
-            // Remove all run tabs (keep master)
-            runs.forEach(run => {
-                const tabBtn = document.getElementById(`tab-btn-${run.id}`);
-                const tabContent = document.getElementById(`tab-${run.id}`);
-                if (tabBtn) tabBtn.remove();
-                if (tabContent) tabContent.remove();
-            });
-
-            // Clear all data
-            runs = [];
-            runDataWithIds = {};
-            columnHeaders = {};
-            excelData = {};
-            masterListData = { rows: [], headers: [], newRows: [] };
-            exportHistory = [];
-
-            // Clear master list
-            const masterContainer = document.getElementById('master-table-container');
-            if (masterContainer) {
-                masterContainer.innerHTML = '<div class="empty-state">Master list will appear here after you update...</div>';
-            }
-
-            // Clear export history UI
-            saveExportHistory();
-            updateExportHistoryUI();
-
-            // Reset counter and add first run
-            runCounter = 0;
-            addRun();
-
-            showStats('✅ All tabs cleared! Starting fresh.', true);
-        }
-
-        function handleFileUpload(runId, event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const filenameSpan = document.getElementById(`filename-${runId}`);
-            filenameSpan.textContent = `Loading ${file.name}...`;
-
-            const reader = new FileReader();
-
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-
-                    // Get first sheet
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-                    if (jsonData.length === 0) {
-                        showStats('⚠️ Excel file is empty!', false);
-                        return;
-                    }
-
-                    // Store the data
-                    excelData[runId] = jsonData;
-
-                    // Get column headers (first row)
-                    const headers = jsonData[0];
-                    const idColumnSelect = document.getElementById(`id-column-select-${runId}`);
-
-                    idColumnSelect.innerHTML = '<option value="">-- Select FTID column --</option>';
-
-                    let foundFtid = false;
-                    headers.forEach((header, index) => {
-                        // Add to ID column selector
-                        const idOption = document.createElement('option');
-                        idOption.value = index;
-                        idOption.textContent = `${header} (Column ${String.fromCharCode(65 + index)})`;
-                        idColumnSelect.appendChild(idOption);
-
-                        // Auto-select FTID if found
-                        if (header && header.toString().toUpperCase().includes('FTID')) {
-                            idOption.selected = true;
-                            foundFtid = true;
-                        }
-                    });
-
-                    // Show column selector
-                    document.getElementById(`column-selector-${runId}`).classList.add('active');
-                    filenameSpan.textContent = `✓ ${file.name} loaded`;
-
-                    if (foundFtid) {
-                        // Auto-import if FTID was found
-                        showStats(`Excel file loaded! Auto-importing with FTID column...`, true);
-                        importAllColumns(runId);
-                    } else {
-                        showStats(`Excel file loaded! Select the FTID column below.`, true);
-                    }
-
-                } catch (error) {
-                    showStats(`⚠️ Error reading Excel file: ${error.message}`, false);
-                    filenameSpan.textContent = '';
-                }
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
-        function importAllColumns(runId) {
-            const idColumnSelect = document.getElementById(`id-column-select-${runId}`);
-            const idColIndex = parseInt(idColumnSelect.value);
-
-            if (isNaN(idColIndex)) {
-                showStats('⚠️ Please select the FTID column!', false);
-                return;
-            }
-
-            const data = excelData[runId];
-            if (!data) return;
-
-            // Get ALL column headers
-            const headers = data[0];
-            columnHeaders[runId] = headers;
-
-            // Build data structure: each row has all cells and FTID
-            const rowsData = [];
-
-            for (let i = 1; i < data.length; i++) {
-                const row = data[i];
-                const ftid = row[idColIndex];
-
-                if (ftid === undefined || ftid === null || ftid === '') continue;
-
-                // Collect ALL columns
-                const cells = headers.map((_, colIdx) => row[colIdx] || '');
-
-                rowsData.push({
-                    ftid: String(ftid).trim(),
-                    cells: cells
-                });
-            }
-
-            // Store the data with IDs
-            runDataWithIds[runId] = rowsData;
-
-            // Display as table
-            renderTable(runId, headers, rowsData);
-
-            showStats(`✅ Imported ${rowsData.length} rows with all columns (deduping by FTID)`, true);
-        }
-
         function renderTable(runId, headers, rows) {
             const container = document.getElementById(`table-container-${runId}`);
 
@@ -1137,74 +1000,76 @@
             container.innerHTML = tableHTML;
         }
 
-        function editTabName(runId) {
-            const titleSpan = document.getElementById(`title-${runId}`);
-            const currentName = titleSpan.textContent;
+        function copyCurrentTab() {
+            const containerId = activeTab === 'master'
+                ? 'master-table-container'
+                : `table-container-${activeTab}`;
 
-            // Create input
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.value = currentName;
-            input.className = 'tab-title-input';
+            const container = document.getElementById(containerId);
+            if (!container) {
+                showStats('⚠️ Nothing to copy!', false);
+                return;
+            }
 
-            // Replace span with input
-            titleSpan.replaceWith(input);
-            input.focus();
-            input.select();
+            const table = container.querySelector('table');
+            if (!table) {
+                showStats('⚠️ No data to copy!', false);
+                return;
+            }
 
-            // Save on blur or enter
-            const saveTitle = () => {
-                const newName = input.value.trim() || currentName;
+            let tsvData = '';
+            const rows = table.querySelectorAll('tr');
 
-                // Update run name
-                const run = runs.find(r => r.id === runId);
-                if (run) run.name = newName;
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                const rowData = Array.from(cells).map(cell => {
+                    let text = cell.textContent.trim();
+                    text = text.replace(/^🟡\s*/, '');
+                    return text;
+                });
+                tsvData += rowData.join('\t') + '\n';
+            });
 
-                // Create new span
-                const newSpan = document.createElement('span');
-                newSpan.className = 'tab-title';
-                newSpan.id = `title-${runId}`;
-                newSpan.textContent = newName;
-                newSpan.ondblclick = () => editTabName(runId);
-
-                input.replaceWith(newSpan);
-
-                // Update panel header
-                updatePanelHeader(runId, newName);
-            };
-
-            input.onblur = saveTitle;
-            input.onkeydown = (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    saveTitle();
-                } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    const newSpan = document.createElement('span');
-                    newSpan.className = 'tab-title';
-                    newSpan.id = `title-${runId}`;
-                    newSpan.textContent = currentName;
-                    newSpan.ondblclick = () => editTabName(runId);
-                    input.replaceWith(newSpan);
-                }
-            };
-        }
-
-        function updatePanelHeader(runId, newName) {
-            const panelHeader = document.querySelector(`#tab-${runId} .panel-header`);
-            if (panelHeader) {
-                const addButton = panelHeader.querySelector('.add-run-btn');
-                panelHeader.innerHTML = `📝 ${newName} - Paste or import your audit data`;
-                if (addButton) {
-                    panelHeader.appendChild(addButton);
-                } else {
-                    panelHeader.innerHTML += '<button class="add-run-btn" onclick="addRun()">+ Add Run</button>';
-                }
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(tsvData);
+                showStats('📋 Copied to clipboard! (Paste into Excel)', true);
+            } else {
+                showStats('⚠️ Clipboard not supported', false);
             }
         }
 
-        // Store master list data for export
-        let masterListData = { rows: [], headers: [], newRows: [] };
+        function clearAllTabsSilent() {
+            runs.forEach(run => {
+                const tabBtn = document.getElementById(`tab-btn-${run.id}`);
+                const tabContent = document.getElementById(`tab-${run.id}`);
+                if (tabBtn) tabBtn.remove();
+                if (tabContent) tabContent.remove();
+            });
+
+            runs = [];
+            runDataWithIds = {};
+            columnHeaders = {};
+            masterListData = { rows: [], headers: [], newRows: [] };
+            runCounter = 0;
+
+            const masterContainer = document.getElementById('master-table-container');
+            if (masterContainer) {
+                masterContainer.innerHTML = '<div class="empty-state">Master list will appear here after loading data...</div>';
+            }
+        }
+
+        function clearAllTabs() {
+            if (!confirm('⚠️ Clear ALL data and start fresh? This cannot be undone.')) {
+                return;
+            }
+
+            clearAllTabsSilent();
+            exportHistory = [];
+            saveExportHistory();
+            updateExportHistoryUI();
+
+            showStats('✅ All cleared! Click "Auto-Load from Downloads" to start.', true);
+        }
 
         function exportToExcel() {
             if (masterListData.newRows.length === 0) {
@@ -1212,23 +1077,19 @@
                 return;
             }
 
-            // Generate timestamp and filename
             const now = new Date();
             const timestamp = now.toISOString().slice(0, 10);
             const timeString = now.toLocaleTimeString();
             const filename = `audit-new-items-${timestamp}.xlsx`;
 
-            // Get FTID column index from headers
             const ftidColumnIndex = masterListData.headers.findIndex(h =>
                 h && h.toString().toUpperCase().includes('FTID')
             );
 
-            // Extract FTIDs from the data
             const ftids = masterListData.newRows.map(row =>
                 ftidColumnIndex >= 0 ? row[ftidColumnIndex] : null
             ).filter(ftid => ftid !== null && ftid !== undefined && ftid !== '');
 
-            // Store in export history
             const exportRecord = {
                 id: Date.now(),
                 filename: filename,
@@ -1243,33 +1104,25 @@
             saveExportHistory();
             updateExportHistoryUI();
 
-            // Create and download the file
             downloadExportFile(exportRecord);
 
             showStats(`✅ Exported ${masterListData.newRows.length} new items to ${filename}!`, true);
         }
 
         function downloadExportFile(exportRecord) {
-            // Create workbook
             const wb = XLSX.utils.book_new();
 
-            // Prepare data - headers + rows
-            const excelData = [
-                exportRecord.headers // Header row
-            ];
+            const excelData = [exportRecord.headers];
 
             exportRecord.data.forEach(rowCells => {
                 excelData.push(rowCells);
             });
 
-            // Create worksheet
             const ws = XLSX.utils.aoa_to_sheet(excelData);
 
-            // Set column widths based on number of columns
             const numColumns = exportRecord.headers.length;
             ws['!cols'] = Array(numColumns).fill({ wch: 20 });
 
-            // Apply yellow highlighting to all data rows (except header)
             const range = XLSX.utils.decode_range(ws['!ref']);
             for (let row = 1; row <= range.e.r; row++) {
                 for (let col = 0; col < numColumns; col++) {
@@ -1288,10 +1141,7 @@
                 }
             }
 
-            // Add worksheet to workbook
             XLSX.utils.book_append_sheet(wb, ws, "New Items");
-
-            // Download
             XLSX.writeFile(wb, exportRecord.filename);
         }
 
@@ -1305,11 +1155,9 @@
                 return;
             }
 
-            // Calculate statistics
             const totalExports = exportHistory.length;
             const totalItems = exportHistory.reduce((sum, exp) => sum + exp.itemCount, 0);
 
-            // Get all unique FTIDs across all exports
             const allFtids = new Set();
             exportHistory.forEach(exp => {
                 if (exp.ftids) {
@@ -1318,7 +1166,6 @@
             });
             const uniqueFtids = allFtids.size;
 
-            // Show statistics
             exportStats.style.display = 'flex';
             exportStats.innerHTML = `
                 <div class="stat-box">
@@ -1335,7 +1182,6 @@
                 </div>
             `;
 
-            // Show most recent first
             const sortedHistory = [...exportHistory].reverse();
 
             exportList.innerHTML = sortedHistory.map(exp => `
@@ -1377,7 +1223,6 @@
             }
         });
 
-        // Initialize on load
         window.onload = init;
     </script>
 </body>
