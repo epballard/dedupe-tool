@@ -547,8 +547,16 @@
 </head>
 <body>
     <div class="container">
-        <h1>📊 Audit Deduplicator</h1>
-        <p class="subtitle">Track audit runs and identify duplicates across multiple runs</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div>
+                <h1>📊 Audit Deduplicator</h1>
+                <p class="subtitle">Track audit runs and identify duplicates across multiple runs</p>
+            </div>
+            <button class="btn-primary" onclick="updateMasterList()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); box-shadow: 0 4px 12px rgba(155, 89, 182, 0.4);">
+                <span class="icon">🔄</span>
+                Update Master List
+            </button>
+        </div>
 
         <div class="tabs-container">
             <div class="tabs" id="tabs">
@@ -577,10 +585,6 @@
             </div>
 
             <div class="buttons">
-                <button class="btn-primary" onclick="updateMasterList()">
-                    <span class="icon">🔄</span>
-                    Update Master List
-                </button>
                 <button class="btn-success" onclick="exportToExcel()">
                     <span class="icon">📊</span>
                     Export to Excel
